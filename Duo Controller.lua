@@ -3,42 +3,107 @@ local tcp = socket.tcp()
 tcp:settimeout(10)
 local ok,err = tcp:connect("127.0.0.1", 5000)
 if not ok then
-   print('Could not connect Error: ',err)
+   print("Could not connect to Duo Controller server, maybe he is updating?")
    return
 else
-   print("TCP connection succesful with Duo Controller Server")
+   print("Connection succesful with Duo Controller Server")
 end
 --Connection Done
+print(GetMap())
 
---Tcp Send
+gameId = false
+myHeroId = false
+debug = false
+version = "1"
+authList = {}
 
---Tcp Recieve
-lastTick = 0
+for i = 1, heroManager.iCount do
+	authList[heroManager:GetHero(i).charName..heroManager:GetHero(i).team] = false
+end
+for i = 1, heroManager.iCount do
+	if myHero == heroManager:GetHero(i) then
+		myHeroId = heroManager:GetHero(i).charName..heroManager:GetHero(i).team
+	end
+end
 
 function OnLoad()
-	tcp:send("setup,"..createGameId()..","..myHero.charName);
+	duocontroller = scriptConfig("Duo Controller", "duocontroller")
+	duocontroller:addSubMenu("Allow Players to Controll Me", "allowedPlayers")
+	for i = 1, heroManager.iCount do
+		if heroManager:GetHero(i) ~= myHero then
+			duocontroller.allowedPlayers:addParam(heroManager:GetHero(i).charName..heroManager:GetHero(i).team, heroManager:GetHero(i).name, SCRIPT_PARAM_ONOFF, false)
+	    end
+    end
 
+	duocontroller:addSubMenu("Script info", "info")
+	duocontroller.info:addParam("info", "Name: Duo Controller", SCRIPT_PARAM_INFO, "")
+	duocontroller.info:addParam("info", "Author: The Law", SCRIPT_PARAM_INFO, "")
+	duocontroller.info:addParam("info", "Version: "..version.."", SCRIPT_PARAM_INFO, "")
 end
 
 function OnTick()
 	tcpListen()
+	if gameId == false then
+		tcp:send("setup,"..createGameId()..","..myHeroId);
+	end
+	for i = 1, heroManager.iCount do
+		if heroManager:GetHero(i) ~= myHero then
+			if duocontroller.allowedPlayers[heroManager:GetHero(i).charName..heroManager:GetHero(i).team] ~= authList[heroManager:GetHero(i).charName..heroManager:GetHero(i).team] then
+				if gameId ~= false then
+				 	auth(heroManager:GetHero(i).charName..heroManager:GetHero(i).team)
+				end
+			end
+		end
+	end
+
 end
 
 function tcpListen()
 	tcp:settimeout(0)
-	local s, status, partial = tcp:receive()
-	print(partial)
-	--if #partial > 1 then
-	--	print(partial)
-	--end
+	local s, status, partial = tcp:receive("*l")
+	if #partial > 1 then
+		local responseArray = partial:split(",")
+		processAnswer(responseArray)
+	end
 end
 
 function createGameId()
-	enemyHeroes = GetEnemyHeroes()
-	allyHeroes = GetStart()
-	local id = ""
-	for _, ally in pairs(allyHeroes) do
-		print(ally)
+	id = ""
+	for i = 1, heroManager.iCount do
+        id = id..heroManager:GetHero(i).charName..heroManager:GetHero(i).team
+    end
+    return id
+end
+
+
+
+function processAnswer(arr)
+	if arr[1] == "setuptrue" then
+		gameId = arr[2]
+		if debug then
+			print("Setup done, your game id:"..gameId)
+		end
 	end
-	return id
+	if arr[1] == "0" then
+		if debug then
+			print("Move command recieved: x->"..arr[2].." z->"..arr[3])
+		end
+		myHero:MoveTo(tonumber(arr[2]),tonumber(arr[3]))
+	end
+	if arr[1] == "auth" then
+		if string.format("%s", tostring(authList[arr[2]])) ~= arr[3] then
+			authList[arr[2]] = not authList[arr[2]]
+			if debug then
+				for i = 1, heroManager.iCount do
+					if arr[2] == heroManager:GetHero(i).charName..heroManager:GetHero(i).team then
+						print("Authed:"..heroManager:GetHero(i).name.." | ".. arr[3])
+					end
+				end
+			end
+		end
+	end
+end
+
+function auth(id)
+	tcp:send("auth,"..id..","..string.format("%s", tostring(duocontroller.allowedPlayers[id])))
 end
