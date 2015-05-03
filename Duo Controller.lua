@@ -1,7 +1,7 @@
 local socket = require("socket")
 local tcp = socket.tcp()
 tcp:settimeout(10)
-local ok,err = tcp:connect("acanguven.koding.io", 44445)
+local ok,err = tcp:connect("acanguven.koding.io", 44444)
 if not ok then
    print("Could not connect to Duo Controller server, maybe he is updating?")
    return
@@ -12,7 +12,7 @@ end
 tcp:setoption("keepalive" , false)
 gameId = false
 myHeroId = false
-debug = true	
+debug = false	
 version = "1.0.0"
 authList = {}
 puppet = nil
