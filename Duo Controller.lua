@@ -1,7 +1,7 @@
 local socket = require("socket")
 local tcp = socket.tcp()
 tcp:settimeout(10)
-local ok,err = tcp:connect("127.0.0.1", 5000)
+local ok,err = tcp:connect("acanguven.koding.io", 44444)
 if not ok then
    print("Could not connect to Duo Controller server, maybe he is updating?")
    return
@@ -9,12 +9,11 @@ else
    print("Connection succesful with Duo Controller Server")
 end
 --Connection Done
-print(GetMap())
-
+tcp:setoption("keepalive" , false)
 gameId = false
 myHeroId = false
-debug = false
-version = "1"
+debug = true	
+version = "1.0.0"
 authList = {}
 
 for i = 1, heroManager.iCount do
@@ -23,6 +22,12 @@ end
 for i = 1, heroManager.iCount do
 	if myHero == heroManager:GetHero(i) then
 		myHeroId = heroManager:GetHero(i).charName..heroManager:GetHero(i).team
+	end
+end
+
+function sendTcp(data)
+	if data ~= nil then
+		tcp:send(data .. "||");
 	end
 end
 
@@ -44,7 +49,7 @@ end
 function OnTick()
 	tcpListen()
 	if gameId == false then
-		tcp:send("setup,"..createGameId()..","..myHeroId);
+		sendTcp("setup,"..createGameId()..","..myHeroId);
 	end
 	for i = 1, heroManager.iCount do
 		if heroManager:GetHero(i) ~= myHero then
@@ -55,7 +60,7 @@ function OnTick()
 			end
 		end
 	end
-
+	
 end
 
 function tcpListen()
@@ -68,13 +73,18 @@ function tcpListen()
 end
 
 function createGameId()
-	id = ""
+	usernames = {}
 	for i = 1, heroManager.iCount do
-        id = id..heroManager:GetHero(i).charName..heroManager:GetHero(i).team
+        table.insert(usernames,heroManager:GetHero(i).name)
     end
-    return id
+    table.sort(usernames)
+    id = ""
+    for i = 1, #usernames do
+        id = id .. usernames[i]:sub(1,3)
+    end
+    --return id
+    return 5
 end
-
 
 
 function processAnswer(arr)
@@ -89,6 +99,14 @@ function processAnswer(arr)
 			print("Move command recieved: x->"..arr[2].." z->"..arr[3])
 		end
 		myHero:MoveTo(tonumber(arr[2]),tonumber(arr[3]))
+	end
+
+	if arr[1] == "puppetmaster" then
+		for i = 1, heroManager.iCount do
+			if arr[2] == heroManager:GetHero(i).charName..heroManager:GetHero(i).team then
+				print(heroManager:GetHero(i).charName.. " is now controlling your hero")
+			end
+		end
 	end
 	if arr[1] == "auth" then
 		if string.format("%s", tostring(authList[arr[2]])) ~= arr[3] then
@@ -105,5 +123,5 @@ function processAnswer(arr)
 end
 
 function auth(id)
-	tcp:send("auth,"..id..","..string.format("%s", tostring(duocontroller.allowedPlayers[id])))
+	sendTcp("auth,"..id..","..string.format("%s", tostring(duocontroller.allowedPlayers[id])))
 end
