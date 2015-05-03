@@ -88,8 +88,7 @@ function createGameId()
     for i = 1, #usernames do
         id = id .. usernames[i]:sub(1,3)
     end
-    --return id
-    return 5
+    return id
 end
 
 
