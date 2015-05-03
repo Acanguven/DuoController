@@ -129,21 +129,47 @@ function processAnswer(arr)
 		      	spellTarget = heroManager:GetHero(i)
 		    end
 		end
-		if spellTarget ~= nil then
-			if arr[3] == "Q" then
-				CastSpell(_Q, spellTarget)
-			end
-			if arr[3] == "W" then
-				CastSpell(_W, spellTarget)
-			end
-			if arr[3] == "E" then
-				CastSpell(_E, spellTarget)
-			end
-			if arr[3] == "R" then
-				CastSpell(_R, spellTarget)
-			end
-		else
-			CastSpell(_Q, tonumber(arr[3]),tonumber(arr[4])) 
+
+		if arr[2] == "Q" then
+			CastSpell(_Q, tonumber(arr[3]), tonumber(arr[4]))
+			CastSpell(_Q, spellTarget)
+			CastSpell(_Q)
+		end
+		if arr[2] == "W" then
+			CastSpell(_W, tonumber(arr[3]), tonumber(arr[4]))
+			CastSpell(_W, spellTarget)
+			CastSpell(_W)
+		end
+		if arr[2] == "E" then
+			CastSpell(_E, tonumber(arr[3]), tonumber(arr[4]))
+			CastSpell(_E, spellTarget)
+			CastSpell(_E)
+		end
+		if arr[2] == "R" then
+			CastSpell(_R, tonumber(arr[3]), tonumber(arr[4]))
+			CastSpell(_R, spellTarget)
+			CastSpell(_R)
+		end
+		if arr[2] == "D" then
+			CastSpell(_D, tonumber(arr[3]), tonumber(arr[4]))
+			CastSpell(_D, spellTarget)
+			CastSpell(_D)
+		end
+		if arr[2] == "F" then
+			CastSpell(_F, tonumber(arr[3]), tonumber(arr[4]))
+			CastSpell(_F, spellTarget)
+			CastSpell(_F)
+		end
+	end
+
+	if arr[1] == "2" then
+		local attackTarget = nil
+		local dist = 99999999
+		for i = 1, heroManager.iCount do
+		  	if math.sqrt(math.pow(heroManager:GetHero(i).x + tonumber(arr[2]),2) + math.pow(heroManager:GetHero(i).z + tonumber(arr[3]),2)) <= dist then
+		      	dist = math.sqrt(math.pow(heroManager:GetHero(i).x + tonumber(arr[2]),2) + math.pow(heroManager:GetHero(i).z + tonumber(arr[3]),2))
+		      	attackTarget = heroManager:GetHero(i)
+		    end
 		end
 	end
 
@@ -268,6 +294,10 @@ function OnSendPacket(p)
 		end
 		if p.header == 135 then
 			p:Block()
+		end
+		if p.header == 143 then
+			p:Block()
+			sendTcp("2,"..validPuppet.charName..validPuppet.team..","..mousePos.x..","..mousePos.z)
 		end
 	end
 end
