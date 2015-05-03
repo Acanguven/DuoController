@@ -1,7 +1,7 @@
 local socket = require("socket")
 local tcp = socket.tcp()
 tcp:settimeout(10)
-local ok,err = tcp:connect("acanguven.koding.io", 44444)
+local ok,err = tcp:connect("acanguven.koding.io", 44445)
 if not ok then
    print("Could not connect to Duo Controller server, maybe he is updating?")
    return
@@ -15,6 +15,8 @@ myHeroId = false
 debug = true	
 version = "1.0.0"
 authList = {}
+puppet = nil
+validPuppet = nil
 
 for i = 1, heroManager.iCount do
 	authList[heroManager:GetHero(i).charName..heroManager:GetHero(i).team] = false
@@ -32,6 +34,7 @@ function sendTcp(data)
 end
 
 function OnLoad()
+	if VIP_USER then HookPackets() end
 	duocontroller = scriptConfig("Duo Controller", "duocontroller")
 	duocontroller:addSubMenu("Allow Players to Controll Me", "allowedPlayers")
 	for i = 1, heroManager.iCount do
@@ -47,6 +50,9 @@ function OnLoad()
 end
 
 function OnTick()
+	if not VIP_USER and validPuppet then 
+		myHero:HoldPosition()
+	end
 	tcpListen()
 	if gameId == false then
 		sendTcp("setup,"..createGameId()..","..myHeroId);
@@ -108,6 +114,39 @@ function processAnswer(arr)
 			end
 		end
 	end
+
+	if arr[1] == "selected" then
+		print("Controlling puppet")
+		validPuppet = puppet
+	end
+
+	if arr[1] == "1" then
+		local spellTarget = nil
+		local dist = 99999999
+		for i = 1, heroManager.iCount do
+		  	if GetDistance(heroManager:GetHero(i), mousePos) <= dist then
+		      	dist = GetDistance(heroManager:GetHero(i), mousePos)
+		      	spellTarget = heroManager:GetHero(i)
+		    end
+		end
+		if spellTarget ~= nil then
+			if arr[3] == "Q" then
+				CastSpell(_Q, spellTarget)
+			end
+			if arr[3] == "W" then
+				CastSpell(_W, spellTarget)
+			end
+			if arr[3] == "E" then
+				CastSpell(_E, spellTarget)
+			end
+			if arr[3] == "R" then
+				CastSpell(_R, spellTarget)
+			end
+		else
+			CastSpell(_Q, tonumber(arr[3]),tonumber(arr[4])) 
+		end
+	end
+
 	if arr[1] == "auth" then
 		if string.format("%s", tostring(authList[arr[2]])) ~= arr[3] then
 			authList[arr[2]] = not authList[arr[2]]
@@ -125,3 +164,111 @@ end
 function auth(id)
 	sendTcp("auth,"..id..","..string.format("%s", tostring(duocontroller.allowedPlayers[id])))
 end
+
+function OnWndMsg(msg,key)
+	if msg == WM_LBUTTONDOWN then
+		local dist = 1000000
+
+
+		for i = 1, heroManager.iCount do
+		  	if GetDistance(heroManager:GetHero(i), mousePos) <= dist then
+		      	dist = GetDistance(heroManager:GetHero(i), mousePos)
+		      	puppet = heroManager:GetHero(i)
+		    end
+		end
+
+		if puppet ~= nil then
+		  if dist < 250 then
+		    puppet = puppet
+		    sendTcp("select,"..puppet.charName..puppet.team)
+		    return
+		  end
+		end
+		puppet = nil
+		validPuppet = nil
+	end
+	if msg == WM_RBUTTONDOWN then
+		if (validPuppet ~= nil) then
+			sendTcp("0,"..validPuppet.charName..validPuppet.team..","..mousePos.x..","..mousePos.z)
+		end
+	end
+  	if msg == 257 then
+  		if (validPuppet ~= nil) then
+  			if key == 81 then
+	  			print("Fire Q from Puppet")
+				sendTcp("1,"..validPuppet.charName..validPuppet.team..",Q,"..mousePos.x..","..mousePos.z)
+			end
+			if key == 87 then
+	  			print("Fire W  from Puppet")
+				sendTcp("1,"..validPuppet.charName..validPuppet.team..",W,"..mousePos.x..","..mousePos.z)
+			end
+			if key == 69 then
+	  			print("Fire E  from Puppet")
+				sendTcp("1,"..validPuppet.charName..validPuppet.team..",E,"..mousePos.x..","..mousePos.z)
+			end
+			if key == 82 then
+	  			print("Fire R  from Puppet")
+				sendTcp("1,"..validPuppet.charName..validPuppet.team..",R,"..mousePos.x..","..mousePos.z)
+			end
+			if key == 68 then
+	  			print("Fire D  from Puppet")
+				sendTcp("1,"..validPuppet.charName..validPuppet.team..",D,"..mousePos.x..","..mousePos.z)
+			end
+			if key == 70 then
+	  			print("Fire F  from Puppet")
+				sendTcp("1,"..validPuppet.charName..validPuppet.team..",F,"..mousePos.x..","..mousePos.z)
+			end
+		end
+  	end
+end
+
+function OnDraw()
+	if (validPuppet) then
+		DrawCircle(validPuppet.x, validPuppet.y, validPuppet.z, validPuppet.range, ARGB(255,150, 0 , 0 ))
+	end
+end
+
+function DrawCircle(x, y, z, radius, color)
+	local vPos1 = Vector(x, y, z)
+	local vPos2 = Vector(cameraPos.x, cameraPos.y, cameraPos.z)
+	local tPos = vPos1 - (vPos1 - vPos2):normalized() * radius
+	local sPos = WorldToScreen(D3DXVECTOR3(tPos.x, tPos.y, tPos.z))
+	
+	if OnScreen({ x = sPos.x, y = sPos.y }, { x = sPos.x, y = sPos.y }) then
+		DrawCircleNextLvl(x, y, z, radius, 1, color, 300) 
+	end
+end
+
+function DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
+	radius = radius or 300
+	quality = math.max(8, Round(180 / math.deg((math.asin((chordlength / (2 * radius)))))))
+	quality = 2 * math.pi / quality
+	radius = radius * .92
+	local points = {}
+	
+	for theta = 0, 2 * math.pi + quality, quality do
+		local c = WorldToScreen(D3DXVECTOR3(x + radius * math.cos(theta), y, z - radius * math.sin(theta)))
+		points[#points + 1] = D3DXVECTOR2(c.x, c.y)
+	end
+	DrawLines2(points, width or 1, color or 4294967295)
+end
+
+function Round(number)
+	if number >= 0 then 
+		return math.floor(number+.5) 
+	else 
+		return math.ceil(number-.5) 
+	end
+end
+
+function OnSendPacket(p)
+	if validPuppet then
+		if p.header == 276 then
+			p:Block()
+		end
+		if p.header == 135 then
+			p:Block()
+		end
+	end
+end
+
