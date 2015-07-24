@@ -1,7 +1,7 @@
 local socket = require("socket")
 local tcp = socket.tcp()
 tcp:settimeout(10)
-local ok,err = tcp:connect("acanguven.koding.io", 44444)
+local ok,err = tcp:connect("{YOURSERVER IP}", 44444)
 if not ok then
    print("Could not connect to Duo Controller server, maybe he is updating?")
    return
