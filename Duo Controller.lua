@@ -91,6 +91,33 @@ function createGameId()
     return id
 end
 
+function createGameId()
+	local result = 0;
+	for i=0,objManager.maxObjects do
+		local unit = objManager:getObject(i)
+		if unit and unit.valid and unit.type==myHero.type then
+			for i=1,unit.name:len() do
+				result = result + unit.name:byte(i);
+			end
+		end
+	end
+	return enc(result..myHero.charName..math.random(1,10000))
+end
+
+function enc(data)
+    baseEnc='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    return ((data:gsub('.', function(x)
+        local r,baseEnc='',x:byte()
+        for i=8,1,-1 do r=r..(baseEnc%2^i-baseEnc%2^(i-1)>0 and '1' or '0') end
+        return r;
+    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
+        if (#x < 6) then return '' end
+        local c=0
+        for i=1,6 do c=c+(x:sub(i,i)=='1' and 2^(6-i) or 0) end
+        return baseEnc:sub(c+1,c+1)
+    end)..({ '', '==', '=' })[#data%3+1])
+end
+
 
 function processAnswer(arr)
 	if arr[1] == "setuptrue" then
