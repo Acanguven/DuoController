@@ -321,7 +321,7 @@ function OnSendPacket(p)
 		if p.header == 135 then
 			p:Block()
 		end
-		if p.header == 143 then
+		if p.header == 295 then --right click
 			p:Block()
 			sendTcp("2,"..validPuppet.charName..validPuppet.team..","..mousePos.x..","..mousePos.z)
 		end
